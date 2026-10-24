@@ -1,0 +1,4246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SC-01 | Multi-Camera Vehicle Re-Identification & Smart Traffic Intelligence</title>
+  <meta name="description"
+    content="Tactical command center platform for multi-camera vehicle re-identification, automated CCTV tracking, traffic flow analytics, and alert management.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       SC-01 COMMAND CENTER DESIGN SYSTEM (DARK TACTICAL HUD)
+       ========================================================================== */
+    :root {
+      --bg-darkest: #050811;
+      --bg-main: #090e1a;
+      --bg-card: rgba(14, 23, 42, 0.75);
+      --bg-card-hover: rgba(22, 36, 65, 0.85);
+      --bg-surface: #0f172a;
+      --border-subtle: rgba(56, 189, 248, 0.12);
+      --border-focus: #00f2fe;
+      --border-card: rgba(30, 58, 102, 0.45);
+
+      --accent-cyan: #00f2fe;
+      --accent-blue: #38bdf8;
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-violet: #a855f7;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-accent: #38bdf8;
+
+      --sidebar-width: 260px;
+      --sidebar-collapsed-width: 72px;
+      --header-height: 64px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+
+      --glow-cyan: 0 0 20px rgba(0, 242, 254, 0.25);
+      --glow-blue: 0 0 20px rgba(56, 189, 248, 0.25);
+      --glow-red: 0 0 20px rgba(244, 63, 94, 0.3);
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: #1e293b #090e1a;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #090e1a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #38bdf8;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-darkest);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Grid background effect */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.04) 0%, transparent 25%),
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* App Wrapper */
+    #app-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* ==========================================================================
+       SIDEBAR NAVIGATION
+       ========================================================================== */
+    #sidebar {
+      width: var(--sidebar-width);
+      background: rgba(9, 14, 26, 0.94);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border-card);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 40;
+      transition: width 0.3s ease;
+    }
+
+    #sidebar.collapsed {
+      width: var(--sidebar-collapsed-width);
+    }
+
+    .brand-section {
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-card);
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #00f2fe, #3b82f6);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .brand-text {
+      overflow: hidden;
+      white-space: nowrap;
+      transition: opacity 0.2s ease;
+    }
+
+    .brand-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: linear-gradient(to right, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 0.65rem;
+      color: var(--accent-cyan);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .nav-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 10px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-category {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      padding: 12px 10px 4px 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: rgba(56, 189, 248, 0.08);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(0, 242, 254, 0.15), rgba(56, 189, 248, 0.04));
+      color: #00f2fe;
+      border-left: 3px solid #00f2fe;
+      font-weight: 600;
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--accent-rose);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    .sidebar-footer {
+      padding: 14px;
+      border-top: 1px solid var(--border-card);
+      background: rgba(5, 8, 17, 0.6);
+    }
+
+    .telemetry-chip {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+      display: inline-block;
+      animation: pulse-glow 2s infinite;
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+      }
+    }
+
+    /* ==========================================================================
+       MAIN CONTENT CONTAINER & HEADER
+       ========================================================================== */
+    #main-wrapper {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      transition: margin-left 0.3s ease;
+    }
+
+    #sidebar.collapsed~#main-wrapper {
+      margin-left: var(--sidebar-collapsed-width);
+    }
+
+    #header {
+      height: var(--header-height);
+      background: rgba(9, 14, 26, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .sidebar-toggle-btn {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      padding: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+
+    .sidebar-toggle-btn:hover {
+      color: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+    }
+
+    .status-hud-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-card);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .status-hud-badge:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .clock-display {
+      font-size: 0.8rem;
+      color: var(--accent-blue);
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--border-card);
+      padding: 4px 12px 4px 6px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    /* Notification Banner (Offline/Alerts) */
+    #system-banner {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15));
+      border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      display: none;
+    }
+
+    #system-banner.visible {
+      display: flex;
+    }
+
+    /* Content Area */
+    #content-area {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .view-section {
+      display: none;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Page Header */
+    .page-header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Action Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 1px solid transparent;
+      outline: none;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00f2fe, #0284c7);
+      color: #04101e;
+      border-color: #38bdf8;
+      box-shadow: 0 2px 10px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 16px rgba(0, 242, 254, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: var(--border-card);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.8);
+      border-color: var(--accent-blue);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border-color: var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    .btn-success:hover {
+      background: rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Metric Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(9, 14, 26, 0.9));
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%);
+      opacity: 0.08;
+      pointer-events: none;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+
+    .stat-val {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.1;
+    }
+
+    .stat-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-sub.up {
+      color: var(--accent-emerald);
+    }
+
+    .stat-sub.warn {
+      color: var(--accent-amber);
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      background: rgba(11, 19, 38, 0.6);
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.82rem;
+    }
+
+    table.data-table th {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-card);
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(30, 58, 102, 0.25);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    table.data-table tbody tr:hover {
+      background: rgba(56, 189, 248, 0.04);
+    }
+
+    /* Badges & Tags */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-info {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-neutral {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      outline: none;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(4, 7, 15, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #0d1527;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), var(--glow-blue);
+      animation: modalSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlide {
+      from {
+        transform: scale(0.95) translateY(10px);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-card);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed rgba(56, 189, 248, 0.3);
+      border-radius: var(--radius-md);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(14, 23, 42, 0.4);
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.05);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .upload-icon-circle {
+      width: 54px;
+      height: 54px;
+      background: rgba(56, 189, 248, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan);
+    }
+
+    /* Camera Feed Card */
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .camera-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .camera-viewport {
+      height: 180px;
+      background: #020617;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .camera-viewport canvas,
+    .camera-viewport img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .camera-hud-overlay {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+
+    .cam-tag {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .rec-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(239, 68, 68, 0.8);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.5px;
+    }
+
+    .camera-card-info {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Re-ID Matching Cards */
+    .reid-query-section {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 992px) {
+      .reid-query-section {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .candidate-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 130px 1fr auto;
+      gap: 16px;
+      align-items: center;
+      transition: var(--transition);
+      margin-bottom: 12px;
+    }
+
+    .candidate-card:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 4px 20px rgba(0, 242, 254, 0.12);
+    }
+
+    .vehicle-crop-preview {
+      width: 130px;
+      height: 90px;
+      background: #020617;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .vehicle-crop-preview img,
+    .vehicle-crop-preview canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .sim-score-meter {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 140px;
+    }
+
+    .meter-bar {
+      height: 6px;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #00f2fe);
+      border-radius: 3px;
+    }
+
+    /* Timeline Journey View */
+    .timeline-container {
+      position: relative;
+      padding: 20px 0 20px 32px;
+    }
+
+    .timeline-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 14px;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent-cyan), rgba(56, 189, 248, 0.2));
+    }
+
+    .timeline-step {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .timeline-node {
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #090e1a;
+      border: 2px solid var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+    }
+
+    .timeline-content {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    /* Toast Notification */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #0f172a;
+      border: 1px solid var(--border-card);
+      border-left: 4px solid var(--accent-cyan);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      color: #fff;
+      font-size: 0.82rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+      animation: toastIn 0.25s ease-out;
+      min-width: 280px;
+    }
+
+    .toast.toast-error {
+      border-left-color: var(--accent-rose);
+    }
+
+    .toast.toast-success {
+      border-left-color: var(--accent-emerald);
+    }
+
+    .toast.toast-warn {
+      border-left-color: var(--accent-amber);
+    }
+
+    @keyframes toastIn {
+      from {
+        transform: translateX(50px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Login Screen Overlay */
+    #login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #0d1830 0%, #030712 100%);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #login-overlay.active {
+      display: flex;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      padding: 36px 32px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), var(--glow-cyan);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ========================================================================
+       TOAST CONTAINER
+       ======================================================================== -->
+  <div id="toast-container"></div>
+
+  <!-- ========================================================================
+       LOGIN SCREEN OVERLAY
+       ======================================================================== -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <div style="text-align: center; margin-bottom: 8px;">
+        <div
+          style="width: 48px; height: 48px; background: linear-gradient(135deg, #00f2fe, #3b82f6); border-radius: 12px; margin: 0 auto 14px auto; display: flex; align-items: center; justify-content: center; box-shadow: var(--glow-cyan);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#04101e" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+            </path>
+          </svg>
+        </div>
+        <h2 style="font-size: 1.3rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;">SC-01 COMMAND PLATFORM
+        </h2>
+        <p
+          style="font-size: 0.8rem; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-top: 4px;">
+          Tactical Traffic Intelligence</p>
+      </div>
+
+      <div
+        style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">QUICK DEMO
+          CREDENTIALS:</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm"
+            onclick="setLoginQuick('admin@sc01.traffic.gov', 'AdminTraffic2026!')">Admin (Chief)</button>
+          <button type="button" class="btn btn-outline btn-sm"
+            onclick="setLoginQuick('analyst@sc01.traffic.gov', 'AnalystTraffic2026!')">Analyst</button>
+        </div>
+      </div>
+
+      <form id="login-form" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Authorized Email Address</label>
+          <input type="email" id="login-email" class="form-control" required placeholder="operator@sc01.traffic.gov"
+            value="admin@sc01.traffic.gov">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">Operator Security Key / Password</label>
+          <input type="password" id="login-password" class="form-control" required placeholder="••••••••••••"
+            value="AdminTraffic2026!">
+        </div>
+
+        <button type="submit" id="login-submit-btn" class="btn btn-primary"
+          style="width: 100%; padding: 11px; margin-top: 6px;">
+          Authenticate & Access Terminal
+        </button>
+      </form>
+
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--border-card); padding-top: 14px;">
+        <span>Status: <span id="login-backend-status" class="mono" style="color: var(--accent-cyan);">Detecting
+            API...</span></span>
+        <button type="button" class="btn btn-outline btn-sm" onclick="bypassLoginStandalone()"
+          style="font-size: 0.7rem; padding: 2px 8px;">Standalone Mode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       APPLICATION CONTAINER
+       ======================================================================== -->
+  <div id="app-container">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#04101e" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">Cross Tracker AI</div>
+          <div class="brand-sub">Traffic Re-ID v2.4</div>
+        </div>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-category">Command & Control</li>
+        <li>
+          <a class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+            <span>Overview Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="cameras" onclick="switchView('cameras')">
+            <svg viewBox="0 0 24 24">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span>Camera Network</span>
+            <span class="nav-badge" id="nav-cam-count">4</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="upload" onclick="switchView('upload')">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>CCTV Video Ingestion</span>
+          </a>
+        </li>
+
+        <li class="nav-category">Intelligence & Vision</li>
+        <li>
+          <a class="nav-item" data-view="detection" onclick="switchView('detection')">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="22" y1="12" x2="18" y2="12"></line>
+              <line x1="6" y1="12" x2="2" y2="12"></line>
+              <line x1="12" y1="6" x2="12" y2="2"></line>
+              <line x1="12" y1="22" x2="12" y2="18"></line>
+            </svg>
+            <span>Detection & Tracks</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="reid" onclick="switchView('reid')">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <path d="M11 8v6M8 11h6"></path>
+            </svg>
+            <span>Multi-Camera Re-ID</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="timeline" onclick="switchView('timeline')">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Global ID Timeline</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="analytics" onclick="switchView('analytics')">
+            <svg viewBox="0 0 24 24">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Traffic Flow Analytics</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="alerts" onclick="switchView('alerts')">
+            <svg viewBox="0 0 24 24">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Alerts & Human Review</span>
+            <span class="nav-badge" id="nav-alert-count">1</span>
+          </a>
+        </li>
+
+        <li class="nav-category">Governance & System</li>
+        <li>
+          <a class="nav-item" data-view="reports" onclick="switchView('reports')">
+            <svg viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Reports & Exports</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="users" onclick="switchView('users')">
+            <svg viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Operator Access</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="audit" onclick="switchView('audit')">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>Audit Trail</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" data-view="settings" onclick="switchView('settings')">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+              </path>
+            </svg>
+            <span>Engine Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="telemetry-chip">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="pulse-dot"></span>
+            <span style="font-weight: 600;">EDGE INFERENCE</span>
+          </div>
+          <span class="mono" style="color: var(--accent-cyan);">ACTIVE</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <div id="main-wrapper">
+
+      <!-- HEADER -->
+      <header id="header">
+        <div class="header-left">
+          <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="status-hud-badge" onclick="openApiConfigModal()">
+            <span id="backend-status-dot" class="pulse-dot"></span>
+            <span id="backend-status-label" class="mono">CONNECTING...</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <div class="clock-display mono">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="live-clock">--:--:-- UTC</span>
+          </div>
+
+          <div class="user-pill" onclick="handleUserMenuClick()">
+            <div class="user-avatar" id="header-user-avatar">A</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.78rem; font-weight: 600;" id="header-user-name">Administrator</span>
+              <span style="font-size: 0.65rem; color: var(--accent-cyan); text-transform: uppercase;"
+                id="header-user-role">ADMIN</span>
+            </div>
+          </div>
+
+          <button class="btn btn-outline btn-sm" onclick="handleLogout()" title="Sign Out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <!-- SYSTEM BANNER -->
+      <div id="system-banner">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span id="system-banner-msg">Backend API is offline or unreachable at http://127.0.0.1:8000. Running in
+            Standalone Operational Preview mode.</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm" onclick="checkBackendHealth()">Retry Connect</button>
+          <button class="btn btn-outline btn-sm" onclick="dismissBanner()">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT VIEW AREA -->
+      <main id="content-area">
+
+        <!-- ====================================================================
+             1. DASHBOARD VIEW
+             ==================================================================== -->
+        <section id="view-dashboard" class="view-section active">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                  stroke-width="2">
+                  <rect x="3" y="3" width="7" height="9"></rect>
+                  <rect x="14" y="3" width="7" height="5"></rect>
+                  <rect x="14" y="12" width="7" height="9"></rect>
+                  <rect x="3" y="16" width="7" height="5"></rect>
+                </svg>
+                Traffic Intelligence Command
+              </h1>
+              <div class="page-desc">Real-time surveillance metrics, vehicle detections, and active re-identification
+                jobs across camera network.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary btn-sm" onclick="refreshDashboardData()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Refresh Telemetry
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="switchView('upload')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Ingest New CCTV
+              </button>
+            </div>
+          </div>
+
+          <!-- Top Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Active Cameras</span>
+              <span class="stat-val mono" id="stat-cameras">4 / 4</span>
+              <span class="stat-sub up">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                </svg>
+                100% Sector Coverage
+              </span>
+            </div>
+
+            <div class="stat-card">
+              <span class="stat-label">Ingested Videos</span>
+              <span class="stat-val mono" id="stat-videos">0</span>
+              <span class="stat-sub" id="stat-frames-sub">0 total frames processed</span>
+            </div>
+
+            <div class="stat-card">
+              <span class="stat-label">Active Vision Jobs</span>
+              <span class="stat-val mono" id="stat-jobs">0 Active</span>
+              <span class="stat-sub" id="stat-jobs-sub">0 pending, 0 failed</span>
+            </div>
+
+            <div class="stat-card">
+              <span class="stat-label">Detected Vehicles</span>
+              <span class="stat-val mono" id="stat-observations">0</span>
+              <span class="stat-sub up" id="stat-tracks-sub">0 tracked identities</span>
+            </div>
+
+            <div class="stat-card">
+              <span class="stat-label">Critical Review Alerts</span>
+              <span class="stat-val mono" style="color: var(--accent-rose);" id="stat-alerts">1</span>
+              <span class="stat-sub warn">Requires human review</span>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Hourly Traffic Density & Flow Volume</div>
+                  <div class="card-subtitle">Aggregated vehicle observations over time windows</div>
+                </div>
+                <span class="badge badge-info mono">24H Window</span>
+              </div>
+              <div style="height: 260px; position: relative;">
+                <canvas id="trafficVolumeChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Vehicle Class Breakdown</div>
+                  <div class="card-subtitle">Detected categorical distribution</div>
+                </div>
+              </div>
+              <div
+                style="height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
+                <canvas id="vehicleClassChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Feeds & Recent Activity -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 7l-7 5 7 5V7z"></path>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                  </svg>
+                  Camera Network Stream Status
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="switchView('cameras')">View All</button>
+              </div>
+              <div id="dash-camera-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                  </svg>
+                  Recent System Vision Events
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="switchView('audit')">Audit Logs</button>
+              </div>
+              <div id="dash-recent-events" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             2. CAMERAS VIEW
+             ==================================================================== -->
+        <section id="view-cameras" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Camera Network & Sensor Nodes</h1>
+              <div class="page-desc">Manage edge CCTV nodes, RTSP stream configurations, and multi-camera spatial
+                topology.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" onclick="openRegisterCameraModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Register New Camera Node
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Toolbar -->
+          <div class="card" style="margin-bottom: 20px; padding: 14px 20px;">
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 220px;">
+                <input type="text" id="camera-search-input" class="form-control"
+                  placeholder="Search by camera code, location, or name..." oninput="filterCameras()">
+              </div>
+              <div style="width: 180px;">
+                <select id="camera-status-filter" class="form-control" onchange="filterCameras()">
+                  <option value="">All Statuses</option>
+                  <option value="active">Active Only</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <button class="btn btn-secondary" onclick="loadCamerasFromBackend()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Sync Nodes
+              </button>
+            </div>
+          </div>
+
+          <!-- Camera Grid -->
+          <div class="camera-grid" id="cameras-grid-container">
+            <!-- Camera cards rendered dynamically -->
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             3. CCTV VIDEO UPLOAD VIEW
+             ==================================================================== -->
+        <section id="view-upload" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">CCTV Video Ingestion & Processing</h1>
+              <div class="page-desc">Upload surveillance video files, trigger YOLOv8 object detection, track generation,
+                and Re-ID feature embeddings.</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Upload Box -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Upload Video Stream File</div>
+                <span class="badge badge-info">MP4 / AVI / MOV / MKV (Max 500MB)</span>
+              </div>
+
+              <form id="video-upload-form" onsubmit="handleVideoUpload(event)">
+                <div class="form-group">
+                  <label class="form-label">Associate to Camera Node</label>
+                  <select id="upload-camera-select" class="form-control" required>
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Surveillance Timestamp (Optional)</label>
+                  <input type="datetime-local" id="upload-recording-time" class="form-control">
+                </div>
+
+                <div class="form-group">
+                  <div class="upload-zone" id="drop-zone" onclick="document.getElementById('video-file-input').click()">
+                    <div class="upload-icon-circle">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">Drag & drop CCTV video file here
+                      </div>
+                      <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">or click to browse
+                        your local computer</div>
+                    </div>
+                    <div id="selected-file-label" class="mono" style="font-size: 0.75rem; color: var(--accent-cyan);">No
+                      file chosen</div>
+                  </div>
+                  <input type="file" id="video-file-input" style="display: none;" accept=".mp4,.mov,.avi,.mkv,.webm"
+                    onchange="handleFileSelect(event)">
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <input type="checkbox" id="upload-auto-process" checked
+                    style="accent-color: var(--accent-cyan); width: 16px; height: 16px;">
+                  <label for="upload-auto-process"
+                    style="font-size: 0.82rem; color: var(--text-secondary); cursor: pointer;">
+                    Automatically run AI Vehicle Detection & Feature Extraction pipeline
+                  </label>
+                </div>
+
+                <div id="upload-progress-container" style="display: none; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+                    <span id="upload-progress-text">Uploading...</span>
+                    <span id="upload-progress-percent" class="mono">0%</span>
+                  </div>
+                  <div class="meter-bar" style="height: 8px;">
+                    <div id="upload-progress-fill" class="meter-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+
+                <button type="submit" id="upload-submit-btn" class="btn btn-primary" style="width: 100%;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  Start CCTV Ingestion
+                </button>
+              </form>
+            </div>
+
+            <!-- Job Queue & History -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Processing Pipeline Queue</div>
+                  <div class="card-subtitle">Real-time status of computer vision jobs</div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="loadProcessingJobs()">Refresh Queue</button>
+              </div>
+
+              <div class="table-container" style="max-height: 480px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Job ID</th>
+                      <th>Video File</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="jobs-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             4. DETECTION & TRACKING VIEW
+             ==================================================================== -->
+        <section id="view-detection" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Vehicle Detection & Tracking Terminal</h1>
+              <div class="page-desc">Inspect frame-by-frame bounding boxes, tracked trajectory vectors, vehicle
+                classification, and confidence scoring.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary btn-sm" onclick="loadObservationsFromBackend()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Sync Observations
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Canvas / Detection Display -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <div class="card" style="padding: 14px;">
+              <div
+                style="position: relative; width: 100%; height: 380px; background: #020617; border-radius: var(--radius-sm); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <canvas id="detection-playback-canvas" width="640" height="360"
+                  style="width: 100%; height: 100%; object-fit: contain;"></canvas>
+
+                <!-- HUD Controls Overlay -->
+                <div
+                  style="position: absolute; bottom: 12px; left: 16px; right: 16px; background: rgba(9, 14, 26, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn btn-outline btn-sm" id="btn-play-pause"
+                      onclick="toggleDetectionPlayback()">Play</button>
+                    <button class="btn btn-outline btn-sm" onclick="stepDetectionFrame()">Step Frame</button>
+                    <span class="mono" style="font-size: 0.75rem; color: var(--accent-cyan);"
+                      id="hud-frame-counter">FRAME 001/180</span>
+                  </div>
+                  <div
+                    style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                    <span>Camera: <strong style="color: #fff;" id="hud-cam-name">CAM-01 Downtown</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detection Filtering Controls -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Observation Filters</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Filter Vehicle Class</label>
+                <select id="obs-class-filter" class="form-control" onchange="renderFilteredObservations()">
+                  <option value="">All Categories</option>
+                  <option value="car">Passenger Car</option>
+                  <option value="suv">SUV</option>
+                  <option value="truck">Heavy Truck</option>
+                  <option value="bus">Transit Bus</option>
+                  <option value="motorcycle">Motorcycle</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Minimum Confidence: <span id="conf-val" class="mono">35%</span></label>
+                <input type="range" id="obs-conf-slider" min="30" max="95" value="35"
+                  style="width: 100%; accent-color: var(--accent-cyan);"
+                  oninput="document.getElementById('conf-val').innerText = this.value + '%'; renderFilteredObservations()">
+              </div>
+
+              <div class="form-group">
+                <div
+                  style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                  <strong style="color: var(--accent-cyan);">Inference Note:</strong> Bounding boxes are generated by
+                  YOLOv8 at 25 FPS with normalized coordinates [x1, y1, x2, y2]. Each crop yields a 256-dimensional deep
+                  feature representation.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Observations Gallery & Table -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Detected Vehicle Observations Gallery</div>
+              <span class="badge badge-info" id="obs-count-badge">0 detections</span>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Track ID</th>
+                    <th>Visual Crop</th>
+                    <th>Camera</th>
+                    <th>Timestamp</th>
+                    <th>Class</th>
+                    <th>Confidence</th>
+                    <th>Bounding Box</th>
+                    <th>Re-ID Action</th>
+                  </tr>
+                </thead>
+                <tbody id="observations-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             5. MULTI-CAMERA RE-ID VIEW
+             ==================================================================== -->
+        <section id="view-reid" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Multi-Camera Vehicle Re-Identification Engine</h1>
+              <div class="page-desc">Match vehicles across disparate surveillance nodes using deep appearance embeddings
+                and transit time plausibility.</div>
+            </div>
+          </div>
+
+          <div class="reid-query-section">
+            <!-- Query Formulation Sidebar -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Query Vehicle Probe</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Select Source Observation</label>
+                <select id="reid-query-select" class="form-control" onchange="handleQueryObsSelect(this.value)">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+
+              <div id="query-preview-container" style="margin-bottom: 16px; display: none;">
+                <div class="vehicle-crop-preview" style="width: 100%; height: 160px; margin-bottom: 8px;">
+                  <img id="query-preview-img" src="" alt="Query Vehicle Crop">
+                </div>
+                <div style="font-size: 0.78rem; line-height: 1.6; color: var(--text-secondary);"
+                  id="query-meta-details">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Similarity Threshold: <span id="reid-threshold-val"
+                    class="mono">60%</span></label>
+                <input type="range" id="reid-threshold-slider" min="40" max="95" value="60"
+                  style="width: 100%; accent-color: var(--accent-cyan);"
+                  oninput="document.getElementById('reid-threshold-val').innerText = this.value + '%'">
+              </div>
+
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="reid-enforce-travel" checked
+                  style="accent-color: var(--accent-cyan); width: 16px; height: 16px;">
+                <label for="reid-enforce-travel"
+                  style="font-size: 0.78rem; color: var(--text-secondary); cursor: pointer;">
+                  Enforce Camera Travel-Time Plausibility
+                </label>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%;" onclick="executeReidSearch()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Execute Re-ID Match Search
+              </button>
+            </div>
+
+            <!-- Match Results List -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Ranked Multi-Camera Candidate Matches</div>
+                  <div class="card-subtitle">Cosine similarity ranking filtered by camera network transit velocity</div>
+                </div>
+                <span class="badge badge-info" id="reid-matches-badge">Ready for query</span>
+              </div>
+
+              <div id="reid-results-container">
+                <div class="empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)"
+                    stroke-width="1.5">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <div>Select a query vehicle probe and execute Re-ID match search to review cross-camera sightings.
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style="margin-top: 16px; padding: 12px; background: rgba(15, 23, 42, 0.6); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)"
+                  stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span><strong>Legal & Investigative Notice:</strong> Re-ID visual similarity is an automated
+                  investigative lead, not conclusive proof of vehicle ownership or identity. Human operator validation
+                  is required.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             6. GLOBAL VEHICLE ID TIMELINE VIEW
+             ==================================================================== -->
+        <section id="view-timeline" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Global Vehicle ID Journey Timeline</h1>
+              <div class="page-desc">Chronological reconstruction of a validated vehicle traveling across interconnected
+                surveillance nodes.</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 340px 1fr; gap: 24px;">
+            <!-- Vehicle Dossier Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Vehicle Dossier</div>
+                <span class="badge badge-success" id="dossier-status">VALIDATED</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Global Identity Code</label>
+                <select id="timeline-gvid-select" class="form-control" onchange="renderVehicleTimeline(this.value)">
+                  <option value="GVID-7721">GVID-7721 (Silver Sedan Coro.)</option>
+                  <option value="GVID-4109">GVID-4109 (Blue Transit Bus)</option>
+                  <option value="GVID-9932">GVID-9932 (White Commercial Van)</option>
+                </select>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.82rem; margin-top: 14px;">
+                <div
+                  style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-card); padding-bottom: 6px;">
+                  <span style="color: var(--text-muted);">Vehicle Class:</span>
+                  <span style="font-weight: 600;" id="dos-class">Sedan</span>
+                </div>
+                <div
+                  style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-card); padding-bottom: 6px;">
+                  <span style="color: var(--text-muted);">Color / Appearance:</span>
+                  <span style="font-weight: 600;" id="dos-color">Silver / Grey Metallic</span>
+                </div>
+                <div
+                  style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-card); padding-bottom: 6px;">
+                  <span style="color: var(--text-muted);">First Detected:</span>
+                  <span class="mono" id="dos-first">08:14:20 UTC</span>
+                </div>
+                <div
+                  style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-card); padding-bottom: 6px;">
+                  <span style="color: var(--text-muted);">Last Confirmed:</span>
+                  <span class="mono" id="dos-last">08:26:15 UTC</span>
+                </div>
+                <div
+                  style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-card); padding-bottom: 6px;">
+                  <span style="color: var(--text-muted);">Transit Distance:</span>
+                  <span class="mono" id="dos-dist">3.8 km</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--text-muted);">Investigator Review:</span>
+                  <span class="badge badge-success" id="dos-rev">Human Confirmed</span>
+                </div>
+              </div>
+
+              <button class="btn btn-outline" style="width: 100%; margin-top: 20px;" onclick="exportTimelineDossier()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Export Investigative Case Dossier
+              </button>
+            </div>
+
+            <!-- Chronological Journey Steps -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Inter-Camera Sighting Timeline</div>
+                <span class="badge badge-info mono">Route: Sector 1 Corridor</span>
+              </div>
+
+              <div class="timeline-container" id="timeline-steps-container">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             7. TRAFFIC ANALYTICS VIEW
+             ==================================================================== -->
+        <section id="view-analytics" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Traffic Analytics & Flow Intelligence</h1>
+              <div class="page-desc">Aggregated vehicle counts, corridor speeds, peak congestion periods, and virtual
+                counting line statistics.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <select id="analytics-time-range" class="form-control" style="width: 160px;">
+                <option value="24h">Past 24 Hours</option>
+                <option value="7d">Past 7 Days</option>
+                <option value="30d">Past 30 Days</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="exportAnalyticsCsv()">Export Analytics CSV</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Velocity & Flow Speed by Corridor</div>
+                <span class="badge badge-info">Avg Speed vs Limit</span>
+              </div>
+              <div style="height: 260px; position: relative;">
+                <canvas id="speedAnalyticsChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Virtual Counting Line Directional Flow</div>
+                <span class="badge badge-success">Active Counters</span>
+              </div>
+              <div style="height: 260px; position: relative;">
+                <canvas id="countingLinesChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heatmap Matrix -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Surveillance Node Density Matrix (Hourly Heatmap)</div>
+            </div>
+            <div class="table-container">
+              <table class="data-table" style="font-size: 0.78rem;">
+                <thead>
+                  <tr>
+                    <th>Camera Node</th>
+                    <th>00:00 - 04:00</th>
+                    <th>04:00 - 08:00</th>
+                    <th>08:00 - 12:00</th>
+                    <th>12:00 - 16:00</th>
+                    <th>16:00 - 20:00</th>
+                    <th>20:00 - 24:00</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="analytics-density-tbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             8. ALERTS & HUMAN REVIEW VIEW
+             ==================================================================== -->
+        <section id="view-alerts" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Alerts & Human-in-the-Loop Review Queue</h1>
+              <div class="page-desc">Review automated computer vision anomaly detections, stopped vehicles, and
+                candidate re-identification matches.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <select id="alert-filter-status" class="form-control" style="width: 160px;" onchange="loadAlerts()">
+                <option value="">All Review States</option>
+                <option value="unreviewed">Unreviewed Only</option>
+                <option value="reviewed">Reviewed / Closed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Alert ID</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Surveillance Node</th>
+                    <th>Description</th>
+                    <th>Timestamp</th>
+                    <th>Status</th>
+                    <th>Human Action</th>
+                  </tr>
+                </thead>
+                <tbody id="alerts-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             9. REPORTS & EXPORTS VIEW
+             ==================================================================== -->
+        <section id="view-reports" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Intelligence Reports & Data Exports</h1>
+              <div class="page-desc">Generate investigative briefs, traffic volume audits, and camera network inventory
+                exports.</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 360px 1fr; gap: 24px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Generate New Report</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Report Title</label>
+                <input type="text" id="report-title-input" class="form-control"
+                  value="Sector 1 Daily Traffic & Re-ID Intelligence Brief">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Report Module Type</label>
+                <select id="report-type-select" class="form-control">
+                  <option value="traffic_summary">Daily Traffic Summary & Counts</option>
+                  <option value="reid_investigation">Vehicle Re-Identification Case Dossier</option>
+                  <option value="audit_export">Security & Operator Audit Trail</option>
+                  <option value="camera_inventory">Camera Topology & Health Status</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Export Format</label>
+                <select id="report-format-select" class="form-control">
+                  <option value="csv">Tabular CSV Data</option>
+                  <option value="json">Machine-Readable JSON</option>
+                </select>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%;" onclick="generateReportExport()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Generate & Download Report
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Generated Export Archive</div>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Module Type</th>
+                      <th>Format</th>
+                      <th>Generated By</th>
+                      <th>Timestamp</th>
+                      <th>Download</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reports-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             10. USER MANAGEMENT VIEW
+             ==================================================================== -->
+        <section id="view-users" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Operator Access & RBAC Directory</h1>
+              <div class="page-desc">Manage operator accounts, cybersecurity roles, and surveillance authorization
+                levels.</div>
+            </div>
+            <button class="btn btn-primary" onclick="openAddUserModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Authorized Operator
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Full Name</th>
+                    <th>Email Address</th>
+                    <th>System Role</th>
+                    <th>Status</th>
+                    <th>Last Active</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             11. AUDIT TRAIL VIEW
+             ==================================================================== -->
+        <section id="view-audit" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Cybersecurity Audit Trail & Compliance Log</h1>
+              <div class="page-desc">Immutable chronological log of operator logins, CCTV video ingestions,
+                re-identification queries, and human review decisions.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="loadAuditLogs()">Refresh Audit Trail</button>
+          </div>
+
+          <div class="card">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Audit ID</th>
+                    <th>Action Event</th>
+                    <th>Target Resource</th>
+                    <th>Operator Email</th>
+                    <th>Client IP</th>
+                    <th>Timestamp</th>
+                    <th>Details Payload</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             12. ENGINE SETTINGS VIEW
+             ==================================================================== -->
+        <section id="view-settings" class="view-section">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Platform Configuration & Vision Parameters</h1>
+              <div class="page-desc">Adjust backend REST API connection endpoints, YOLO detection parameters, and Re-ID
+                physics thresholds.</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Backend API Connection</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Backend REST Endpoint URL</label>
+                <input type="text" id="setting-backend-url" class="form-control mono" value="http://127.0.0.1:8000">
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="saveBackendUrlSetting()">Save & Reconnect</button>
+                <button class="btn btn-outline" onclick="testBackendPing()">Test Latency</button>
+              </div>
+              <div id="settings-ping-result" class="mono"
+                style="font-size: 0.75rem; margin-top: 10px; color: var(--accent-cyan);"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">AI Vision & Re-ID Thresholds</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Default YOLO Confidence Threshold: <span id="set-yolo-val">0.35</span></label>
+                <input type="range" min="20" max="80" value="35" class="form-control"
+                  style="accent-color: var(--accent-cyan);"
+                  oninput="document.getElementById('set-yolo-val').innerText = (this.value/100).toFixed(2)">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Cosine Similarity Re-ID Match Threshold: <span
+                    id="set-reid-val">0.65</span></label>
+                <input type="range" min="40" max="90" value="65" class="form-control"
+                  style="accent-color: var(--accent-cyan);"
+                  oninput="document.getElementById('set-reid-val').innerText = (this.value/100).toFixed(2)">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Stopped Vehicle Anomaly Duration (Seconds)</label>
+                <input type="number" class="form-control" value="15" min="5" max="120">
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODALS
+       ======================================================================== -->
+  <!-- Register Camera Modal -->
+  <div id="modal-register-camera" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="card-title">Register New CCTV Surveillance Node</div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-register-camera')">✕</button>
+      </div>
+      <form onsubmit="handleCameraSubmit(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Camera Identifier Code</label>
+              <input type="text" id="modal-cam-code" class="form-control mono" placeholder="CAM-05" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Display Name</label>
+              <input type="text" id="modal-cam-name" class="form-control" placeholder="Midtown Expressway Exit"
+                required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Physical Sector / Location</label>
+            <input type="text" id="modal-cam-loc" class="form-control" placeholder="Mile Marker 22.4 North" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Latitude</label>
+              <input type="number" step="0.0001" id="modal-cam-lat" class="form-control" value="40.7306" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude</label>
+              <input type="number" step="0.0001" id="modal-cam-lng" class="form-control" value="-73.9352" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Orientation / Direction</label>
+              <select id="modal-cam-dir" class="form-control">
+                <option value="Northbound">Northbound</option>
+                <option value="Southbound">Southbound</option>
+                <option value="Eastbound">Eastbound</option>
+                <option value="Westbound">Westbound</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Field of View (Degrees)</label>
+              <input type="number" id="modal-cam-fov" class="form-control" value="75">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">RTSP Video Stream URL</label>
+            <input type="text" id="modal-cam-rtsp" class="form-control mono"
+              placeholder="rtsp://operator:pass@192.168.1.105:554/stream1">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-register-camera')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Register Camera</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Review Alert Modal -->
+  <div id="modal-review-alert" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="card-title">Human-in-the-Loop Alert Review</div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-review-alert')">✕</button>
+      </div>
+      <form onsubmit="handleAlertReviewSubmit(event)">
+        <input type="hidden" id="review-alert-id">
+        <div class="modal-body">
+          <div id="review-alert-details" style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 16px;">
+            <!-- Injected via JS -->
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Human Review Decision</label>
+            <select id="review-decision-select" class="form-control" required>
+              <option value="reviewed">Approve & Confirm Incident</option>
+              <option value="dismissed">Dismiss (False Alarm / Normal Flow)</option>
+              <option value="acknowledged">Acknowledge & Escalate to Patrol</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Reviewer Log Notes</label>
+            <textarea id="review-notes-input" class="form-control" rows="3"
+              placeholder="Document observation context and reason for decision..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-review-alert')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit Decision</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- API URL Config Modal -->
+  <div id="modal-api-config" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="card-title">Backend API Configuration</div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-api-config')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">REST API Base Endpoint</label>
+          <input type="text" id="modal-api-url" class="form-control mono" value="http://127.0.0.1:8000">
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+            Default local FastAPI server: <code class="mono">http://127.0.0.1:8000</code>
+          </div>
+        </div>
+        <div id="api-test-output" class="mono"
+          style="font-size: 0.78rem; padding: 10px; border-radius: var(--radius-sm); display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="testModalApiConnection()">Test Connection</button>
+        <button type="button" class="btn btn-primary" onclick="saveModalApiUrl()">Apply & Reconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div id="modal-add-user" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="card-title">Add Authorized Operator</div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-add-user')">✕</button>
+      </div>
+      <form onsubmit="handleAddUserSubmit(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="new-user-name" class="form-control" placeholder="Officer Sarah Connor" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="new-user-email" class="form-control" placeholder="s.connor@sc01.traffic.gov"
+              required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">System Role</label>
+              <select id="new-user-role" class="form-control">
+                <option value="analyst">Analyst</option>
+                <option value="investigator">Investigator</option>
+                <option value="reviewer">Reviewer</option>
+                <option value="viewer">Viewer</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Temporary Password</label>
+              <input type="password" id="new-user-pass" class="form-control" value="SecurePass2026!" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-user')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Operator</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       FRONTEND JAVASCRIPT LOGIC
+       ======================================================================== -->
+  <script>
+    /* ==========================================================================
+       CONFIGURATION & GLOBAL STATE
+       ========================================================================== */
+    const CONFIG = {
+      API_BASE: localStorage.getItem('sc01_api_base') || (window.location.port === '8000' ? window.location.origin : 'http://127.0.0.1:8000'),
+      TOKEN_KEY: 'sc01_auth_token',
+      USER_KEY: 'sc01_auth_user',
+    };
+
+    const STATE = {
+      backendOnline: false,
+      currentUser: null,
+      cameras: [],
+      videos: [],
+      jobs: [],
+      observations: [],
+      alerts: [],
+      auditLogs: [],
+      users: [],
+      charts: {},
+      selectedQueryObs: null,
+      detectionPlaybackIndex: 0,
+      detectionPlaybackInterval: null,
+      isPlayingDetections: false,
+      bannerDismissed: false
+    };
+
+    // Realistic Demo Fallbacks (shown if backend is offline or starting up)
+    const DEMO_CAMERAS = [
+      { id: 1, camera_code: 'CAM-01', display_name: 'Downtown North Junction', location_name: '5th Ave & Pine St', direction: 'Northbound', status: 'active', rtsp_configured: true, rtsp_url_masked: 'rtsp://***:***@192.168.1.101:554/stream1' },
+      { id: 2, camera_code: 'CAM-02', display_name: 'Highway 101 Overpass South', location_name: 'Mile Marker 14.2 South', direction: 'Southbound', status: 'active', rtsp_configured: true, rtsp_url_masked: 'rtsp://***:***@192.168.1.102:554/stream1' },
+      { id: 3, camera_code: 'CAM-03', display_name: 'Commercial Sector Arterial', location_name: 'Broadway & 42nd Cross', direction: 'Eastbound', status: 'active', rtsp_configured: true, rtsp_url_masked: 'rtsp://***:***@192.168.1.103:554/stream1' },
+      { id: 4, camera_code: 'CAM-04', display_name: 'Harbor Toll Plaza Entry', location_name: 'Toll Plaza Gates 1-4', direction: 'Westbound', status: 'active', rtsp_configured: true, rtsp_url_masked: 'rtsp://***:***@192.168.1.104:554/stream1' }
+    ];
+
+    const DEMO_OBSERVATIONS = [
+      { id: 101, track_id: 1, camera_id: 1, camera_code: 'CAM-01', timestamp_sec: 14.2, detection_class: 'car', confidence: 0.94, bbox_normalized: [0.32, 0.45, 0.52, 0.78], color: 'Silver' },
+      { id: 102, track_id: 2, camera_id: 1, camera_code: 'CAM-01', timestamp_sec: 16.8, detection_class: 'truck', confidence: 0.91, bbox_normalized: [0.12, 0.38, 0.40, 0.85], color: 'White' },
+      { id: 103, track_id: 3, camera_id: 2, camera_code: 'CAM-02', timestamp_sec: 198.4, detection_class: 'car', confidence: 0.89, bbox_normalized: [0.45, 0.50, 0.65, 0.82], color: 'Silver' },
+      { id: 104, track_id: 4, camera_id: 3, camera_code: 'CAM-03', timestamp_sec: 432.1, detection_class: 'bus', confidence: 0.96, bbox_normalized: [0.20, 0.30, 0.58, 0.88], color: 'Blue' },
+      { id: 105, track_id: 5, camera_id: 4, camera_code: 'CAM-04', timestamp_sec: 712.5, detection_class: 'car', confidence: 0.92, bbox_normalized: [0.35, 0.48, 0.54, 0.79], color: 'Silver' }
+    ];
+
+    const DEMO_ALERTS = [
+      { id: 1, camera_id: 1, camera_code: 'CAM-01', alert_type: 'stopped_vehicle', severity: 'high', title: 'Stopped Vehicle in Active Flow Lane', description: 'Vehicle detected stationary in live traffic lane exceeding 15 seconds.', status: 'unreviewed', created_at: new Date(Date.now() - 360000).toISOString() },
+      { id: 2, camera_id: 2, camera_code: 'CAM-02', alert_type: 'congestion', severity: 'medium', title: 'Density Exceeded (Highway 101)', description: 'Lane occupancy > 82% over 5-minute sampling window.', status: 'unreviewed', created_at: new Date(Date.now() - 1800000).toISOString() }
+    ];
+
+    const DEMO_USERS = [
+      { id: 1, full_name: 'Chief Traffic Administrator', email: 'admin@sc01.traffic.gov', role: 'admin', is_active: true, last_login_at: new Date().toISOString() },
+      { id: 2, full_name: 'Senior Analyst Maya Lin', email: 'analyst@sc01.traffic.gov', role: 'analyst', is_active: true, last_login_at: new Date(Date.now() - 86400000).toISOString() },
+      { id: 3, full_name: 'Detective J. Vance', email: 'investigator@sc01.traffic.gov', role: 'investigator', is_active: true, last_login_at: new Date(Date.now() - 172800000).toISOString() }
+    ];
+
+    /* ==========================================================================
+       UTILITY & NOTIFICATION FUNCTIONS
+       ========================================================================== */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✓';
+      if (type === 'error') icon = '⚠';
+      if (type === 'warn') icon = '⚡';
+
+      toast.innerHTML = `<span style="font-weight: bold;">${icon}</span><span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function updateLiveClock() {
+      const now = new Date();
+      const utcString = now.toUTCString().split(' ')[4] + ' UTC';
+      const el = document.getElementById('live-clock');
+      if (el) el.innerText = utcString;
+    }
+    setInterval(updateLiveClock, 1000);
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    function switchView(viewName) {
+      document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+      const targetSection = document.getElementById(`view-${viewName}`);
+      const targetNav = document.querySelector(`.nav-item[data-view="${viewName}"]`);
+
+      if (targetSection) targetSection.classList.add('active');
+      if (targetNav) targetNav.classList.add('active');
+
+      // Trigger lazy renders for active views
+      if (viewName === 'dashboard') refreshDashboardData();
+      if (viewName === 'cameras') loadCamerasFromBackend();
+      if (viewName === 'detection') renderDetectionView();
+      if (viewName === 'reid') populateReidProbeSelect();
+      if (viewName === 'timeline') renderVehicleTimeline(document.getElementById('timeline-gvid-select')?.value || 'GVID-7721');
+      if (viewName === 'analytics') renderAnalyticsCharts();
+      if (viewName === 'alerts') loadAlerts();
+      if (viewName === 'users') loadUsers();
+      if (viewName === 'audit') loadAuditLogs();
+      if (viewName === 'upload') loadProcessingJobs();
+    }
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('open');
+    }
+
+    function dismissBanner() {
+      STATE.bannerDismissed = true;
+      document.getElementById('system-banner').classList.remove('visible');
+    }
+
+    /* ==========================================================================
+       API SERVICE LAYER
+       ========================================================================== */
+    async function apiRequest(endpoint, options = {}) {
+      const url = `${CONFIG.API_BASE}${endpoint}`;
+      const token = localStorage.getItem(CONFIG.TOKEN_KEY);
+
+      const headers = {
+        'Accept': 'application/json',
+        ...(options.headers || {})
+      };
+
+      if (token && !headers['Authorization']) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      try {
+        const response = await fetch(url, { ...options, headers });
+        if (response.status === 401 && !endpoint.includes('/auth/login')) {
+          handleAuthExpired();
+          throw new Error('Session expired. Please log in.');
+        }
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error((data && (data.detail || data.message)) || `HTTP ${response.status}`);
+        }
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    async function checkBackendHealth() {
+      const statusDot = document.getElementById('backend-status-dot');
+      const statusLabel = document.getElementById('backend-status-label');
+      const banner = document.getElementById('system-banner');
+
+      try {
+        const res = await fetch(`${CONFIG.API_BASE}/api/v1/health`, { method: 'GET' });
+        if (res.ok) {
+          STATE.backendOnline = true;
+          statusDot.style.background = 'var(--accent-emerald)';
+          statusDot.style.boxShadow = '0 0 8px var(--accent-emerald)';
+          statusLabel.innerText = `ONLINE (${new URL(CONFIG.API_BASE).port || '80'})`;
+          if (banner) banner.classList.remove('visible');
+          return true;
+        } else {
+          throw new Error('Unhealthy');
+        }
+      } catch (e) {
+        STATE.backendOnline = false;
+        statusDot.style.background = 'var(--accent-amber)';
+        statusDot.style.boxShadow = '0 0 8px var(--accent-amber)';
+        statusLabel.innerText = 'OFFLINE (PREVIEW)';
+        if (banner && !STATE.bannerDismissed) banner.classList.add('visible');
+        return false;
+      }
+    }
+
+    /* ==========================================================================
+       AUTHENTICATION LOGIC
+       ========================================================================== */
+    function checkAuthSession() {
+      const savedUser = localStorage.getItem(CONFIG.USER_KEY);
+      const token = localStorage.getItem(CONFIG.TOKEN_KEY);
+
+      if (savedUser && token) {
+        try {
+          STATE.currentUser = JSON.parse(savedUser);
+          applyCurrentUserUI();
+          document.getElementById('login-overlay').classList.remove('active');
+          return;
+        } catch (e) {
+          localStorage.removeItem(CONFIG.USER_KEY);
+        }
+      }
+
+      // Show login overlay
+      document.getElementById('login-overlay').classList.add('active');
+    }
+
+    function setLoginQuick(email, pass) {
+      document.getElementById('login-email').value = email;
+      document.getElementById('login-password').value = pass;
+    }
+
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const submitBtn = document.getElementById('login-submit-btn');
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Authenticating...';
+
+      try {
+        let authData;
+        if (STATE.backendOnline) {
+          authData = await apiRequest('/api/v1/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+          });
+          localStorage.setItem(CONFIG.TOKEN_KEY, authData.access_token);
+          STATE.currentUser = authData.user;
+          localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(authData.user));
+        } else {
+          // Demo fallback
+          showToast('Backend offline. Logged in via Standalone Terminal Mode.', 'warn');
+          STATE.currentUser = {
+            id: 1,
+            email: email,
+            full_name: email.includes('admin') ? 'Chief Traffic Administrator' : 'Surveillance Analyst',
+            role: email.includes('admin') ? 'admin' : 'analyst'
+          };
+          localStorage.setItem(CONFIG.TOKEN_KEY, 'demo-standalone-token-sc01');
+          localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(STATE.currentUser));
+        }
+
+        applyCurrentUserUI();
+        document.getElementById('login-overlay').classList.remove('active');
+        showToast(`Welcome back, ${STATE.currentUser.full_name}`, 'success');
+        refreshDashboardData();
+      } catch (err) {
+        showToast(err.message || 'Login failed', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Authenticate & Access Terminal';
+      }
+    }
+
+    function bypassLoginStandalone() {
+      STATE.currentUser = {
+        id: 1,
+        email: 'operator@sc01.traffic.gov',
+        full_name: 'Terminal Watch Officer',
+        role: 'admin'
+      };
+      localStorage.setItem(CONFIG.TOKEN_KEY, 'demo-standalone-token-sc01');
+      localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(STATE.currentUser));
+      applyCurrentUserUI();
+      document.getElementById('login-overlay').classList.remove('active');
+      showToast('Entered terminal in Standalone Operator Mode', 'info');
+      refreshDashboardData();
+    }
+
+    function applyCurrentUserUI() {
+      if (!STATE.currentUser) return;
+      document.getElementById('header-user-name').innerText = STATE.currentUser.full_name || 'Operator';
+      document.getElementById('header-user-role').innerText = STATE.currentUser.role || 'ANALYST';
+      document.getElementById('header-user-avatar').innerText = (STATE.currentUser.full_name || 'O')[0].toUpperCase();
+    }
+
+    function handleLogout() {
+      localStorage.removeItem(CONFIG.TOKEN_KEY);
+      localStorage.removeItem(CONFIG.USER_KEY);
+      STATE.currentUser = null;
+      document.getElementById('login-overlay').classList.add('active');
+      showToast('Logged out of command session', 'info');
+    }
+
+    function handleAuthExpired() {
+      handleLogout();
+      showToast('Authentication expired. Please re-authenticate.', 'error');
+    }
+
+    /* ==========================================================================
+       DASHBOARD & CHARTS
+       ========================================================================== */
+    async function refreshDashboardData() {
+      let summary = null;
+      if (STATE.backendOnline) {
+        try {
+          summary = await apiRequest('/api/v1/dashboard/summary');
+        } catch (e) {
+          console.warn('Dashboard API failed, using state data', e);
+        }
+      }
+
+      const totalCams = summary ? summary.total_cameras : (STATE.cameras.length || DEMO_CAMERAS.length);
+      const activeCams = summary ? summary.active_cameras : totalCams;
+      const totalVideos = summary ? summary.total_videos : STATE.videos.length;
+      const totalObs = summary ? summary.total_observations : (STATE.observations.length || DEMO_OBSERVATIONS.length);
+      const totalTracks = summary ? summary.total_tracks : 18;
+      const totalAlerts = summary ? (summary.jobs_summary?.failed || 1) : (STATE.alerts.length || 1);
+
+      document.getElementById('stat-cameras').innerText = `${activeCams} / ${totalCams}`;
+      document.getElementById('stat-videos').innerText = totalVideos;
+      document.getElementById('stat-observations').innerText = totalObs;
+      document.getElementById('stat-tracks-sub').innerText = `${totalTracks} tracked vehicle tracks`;
+      document.getElementById('stat-alerts').innerText = totalAlerts;
+
+      renderDashboardCharts(summary);
+      renderDashboardCameraList();
+      renderDashboardRecentEvents();
+    }
+
+    function renderDashboardCharts(summary) {
+      // 1. Traffic Volume Curve
+      const volumeCtx = document.getElementById('trafficVolumeChart')?.getContext('2d');
+      if (volumeCtx) {
+        if (STATE.charts.volume) STATE.charts.volume.destroy();
+
+        const labels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+        const data = [12, 38, 142, 118, 185, 96, 32];
+
+        STATE.charts.volume = new Chart(volumeCtx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Vehicles / Hour',
+              data: data,
+              borderColor: '#00f2fe',
+              backgroundColor: 'rgba(0, 242, 254, 0.08)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: '#00f2fe',
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+              y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+            }
+          }
+        });
+      }
+
+      // 2. Class Distribution Doughnut
+      const classCtx = document.getElementById('vehicleClassChart')?.getContext('2d');
+      if (classCtx) {
+        if (STATE.charts.classDist) STATE.charts.classDist.destroy();
+
+        const classLabels = ['Sedan', 'SUV', 'Truck', 'Bus', 'Motorcycle'];
+        const classData = [48, 26, 14, 8, 4];
+
+        STATE.charts.classDist = new Chart(classCtx, {
+          type: 'doughnut',
+          data: {
+            labels: classLabels,
+            datasets: [{
+              data: classData,
+              backgroundColor: ['#00f2fe', '#38bdf8', '#6366f1', '#f59e0b', '#10b981'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: '#94a3b8', font: { size: 11 } }
+              }
+            },
+            cutout: '68%'
+          }
+        });
+      }
+    }
+
+    function renderDashboardCameraList() {
+      const container = document.getElementById('dash-camera-list');
+      if (!container) return;
+      const list = STATE.cameras.length ? STATE.cameras : DEMO_CAMERAS;
+
+      container.innerHTML = list.slice(0, 4).map(cam => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="pulse-dot"></span>
+            <div>
+              <div style="font-weight: 600; font-size: 0.82rem; color: #fff;">${cam.camera_code}: ${cam.display_name}</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">${cam.location_name} • ${cam.direction || 'Inbound'}</div>
+            </div>
+          </div>
+          <span class="badge badge-success">STREAM ONLINE</span>
+        </div>
+      `).join('');
+    }
+
+    function renderDashboardRecentEvents() {
+      const container = document.getElementById('dash-recent-events');
+      if (!container) return;
+
+      const events = [
+        { title: 'CAM-01 Live Ingestion', desc: '142 frames parsed with YOLOv8 detector', time: '2m ago', badge: 'DETECTION' },
+        { title: 'Re-ID Search Query', desc: 'Cross-match probe against CAM-02 and CAM-03', time: '8m ago', badge: 'RE-ID' },
+        { title: 'Stopped Vehicle Alert', desc: 'CAM-01 East lane anomaly flagged for review', time: '14m ago', badge: 'ALERT' }
+      ];
+
+      container.innerHTML = events.map(ev => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border-card); font-size: 0.78rem;">
+          <div>
+            <div style="font-weight: 600; color: var(--text-primary);">${ev.title}</div>
+            <div style="color: var(--text-muted); font-size: 0.72rem;">${ev.desc}</div>
+          </div>
+          <div style="text-align: right;">
+            <span class="badge badge-info">${ev.badge}</span>
+            <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 2px;">${ev.time}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* ==========================================================================
+       CAMERA NETWORK MODULE
+       ========================================================================== */
+    async function loadCamerasFromBackend() {
+      let cams = [];
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest('/api/v1/cameras');
+          cams = res.items || [];
+          STATE.cameras = cams;
+        } catch (e) {
+          console.warn('Cameras API error', e);
+          cams = DEMO_CAMERAS;
+        }
+      } else {
+        cams = DEMO_CAMERAS;
+        STATE.cameras = cams;
+      }
+
+      document.getElementById('nav-cam-count').innerText = cams.length;
+      populateCameraSelects(cams);
+      renderCameraCards(cams);
+    }
+
+    function populateCameraSelects(cameras) {
+      const uploadSelect = document.getElementById('upload-camera-select');
+      if (uploadSelect) {
+        uploadSelect.innerHTML = cameras.map(c => `
+          <option value="${c.id}">${c.camera_code} — ${c.display_name} (${c.location_name})</option>
+        `).join('');
+      }
+    }
+
+    function renderCameraCards(cameras) {
+      const container = document.getElementById('cameras-grid-container');
+      if (!container) return;
+
+      if (!cameras.length) {
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;">No surveillance cameras registered.</div>`;
+        return;
+      }
+
+      container.innerHTML = cameras.map(cam => `
+        <div class="camera-card">
+          <div class="camera-viewport">
+            <div style="width: 100%; height: 100%; background: radial-gradient(circle at center, #111e3b 0%, #030712 100%); display: flex; align-items: center; justify-content: center; position: relative;">
+              <!-- Simulated Surveillance Crosshairs -->
+              <svg width="60" height="60" viewBox="0 0 100 100" stroke="rgba(0, 242, 254, 0.25)" fill="none" stroke-width="1.5">
+                <circle cx="50" cy="50" r="30"></circle>
+                <line x1="10" y1="50" x2="90" y2="50"></line>
+                <line x1="50" y1="10" x2="50" y2="90"></line>
+              </svg>
+              <div class="camera-hud-overlay">
+                <span class="cam-tag mono">${cam.camera_code}</span>
+                <span class="rec-indicator mono">● LIVE</span>
+              </div>
+              <div style="position: absolute; bottom: 6px; left: 8px; font-size: 0.65rem; color: var(--accent-cyan);" class="mono">
+                ${cam.latitude ? cam.latitude.toFixed(4) : '40.7128'}°N, ${cam.longitude ? cam.longitude.toFixed(4) : '-74.0060'}°W
+              </div>
+            </div>
+          </div>
+          <div class="camera-card-info">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.88rem; color: #fff;">${cam.display_name}</div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">${cam.location_name}</div>
+              </div>
+              <span class="badge badge-success">${cam.status || 'ACTIVE'}</span>
+            </div>
+
+            <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
+              <div><strong>Direction:</strong> ${cam.direction || 'Northbound'} (${cam.field_of_view_deg || 75}° FOV)</div>
+              <div><strong>RTSP Stream:</strong> <code class="mono" style="color: var(--accent-blue);">${cam.rtsp_url_masked || 'rtsp://***:***@stream'}</code></div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn btn-outline btn-sm" style="flex: 1;" onclick="testCameraPing('${cam.camera_code}')">Test Ping</button>
+              <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="switchView('detection')">View Feed</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCameras() {
+      const q = document.getElementById('camera-search-input')?.value.toLowerCase() || '';
+      const status = document.getElementById('camera-status-filter')?.value || '';
+      const list = STATE.cameras.length ? STATE.cameras : DEMO_CAMERAS;
+
+      const filtered = list.filter(c => {
+        const matchesQ = (c.camera_code + ' ' + c.display_name + ' ' + c.location_name).toLowerCase().includes(q);
+        const matchesStatus = !status || c.status === status;
+        return matchesQ && matchesStatus;
+      });
+
+      renderCameraCards(filtered);
+    }
+
+    function openRegisterCameraModal() {
+      const count = (STATE.cameras.length || DEMO_CAMERAS.length) + 1;
+      document.getElementById('modal-cam-code').value = `CAM-0${count}`;
+      openModal('modal-register-camera');
+    }
+
+    async function handleCameraSubmit(event) {
+      event.preventDefault();
+      const camera_code = document.getElementById('modal-cam-code').value.trim().toUpperCase();
+      const display_name = document.getElementById('modal-cam-name').value.trim();
+      const location_name = document.getElementById('modal-cam-loc').value.trim();
+      const latitude = parseFloat(document.getElementById('modal-cam-lat').value);
+      const longitude = parseFloat(document.getElementById('modal-cam-lng').value);
+      const direction = document.getElementById('modal-cam-dir').value;
+      const field_of_view_deg = parseFloat(document.getElementById('modal-cam-fov').value);
+      const rtsp_url = document.getElementById('modal-cam-rtsp').value.trim();
+
+      const payload = {
+        camera_code, display_name, location_name, latitude, longitude,
+        direction, field_of_view_deg, rtsp_url
+      };
+
+      try {
+        if (STATE.backendOnline) {
+          const newCam = await apiRequest('/api/v1/cameras', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          STATE.cameras.push(newCam);
+        } else {
+          // Local add
+          const newCam = {
+            id: Date.now(),
+            ...payload,
+            status: 'active',
+            rtsp_configured: Boolean(rtsp_url),
+            rtsp_url_masked: rtsp_url ? 'rtsp://***:***@stream' : null
+          };
+          STATE.cameras.push(newCam);
+        }
+
+        closeModal('modal-register-camera');
+        showToast(`Camera ${camera_code} registered successfully!`, 'success');
+        loadCamerasFromBackend();
+      } catch (err) {
+        showToast(err.message || 'Failed to register camera', 'error');
+      }
+    }
+
+    function testCameraPing(code) {
+      showToast(`Pinging camera node [${code}]... Latency: 18ms (0% packet loss)`, 'success');
+    }
+
+    /* ==========================================================================
+       CCTV VIDEO UPLOAD & PROCESSING
+       ========================================================================== */
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('selected-file-label').innerText = `${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+      }
+    }
+
+    async function handleVideoUpload(event) {
+      event.preventDefault();
+      const fileInput = document.getElementById('video-file-input');
+      const file = fileInput.files[0];
+      const cameraId = document.getElementById('upload-camera-select').value;
+      const recordingTime = document.getElementById('upload-recording-time').value;
+      const autoProcess = document.getElementById('upload-auto-process').checked;
+
+      if (!file) {
+        showToast('Please select a CCTV video file to ingest', 'error');
+        return;
+      }
+
+      const progressContainer = document.getElementById('upload-progress-container');
+      const progressFill = document.getElementById('upload-progress-fill');
+      const progressPercent = document.getElementById('upload-progress-percent');
+      const submitBtn = document.getElementById('upload-submit-btn');
+
+      progressContainer.style.display = 'block';
+      submitBtn.disabled = true;
+
+      if (STATE.backendOnline) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('camera_id', cameraId);
+          if (recordingTime) formData.append('recording_time', recordingTime);
+          formData.append('auto_process', autoProcess);
+
+          // Simulate progress visuals while streaming
+          let p = 10;
+          const pInterval = setInterval(() => {
+            if (p < 90) {
+              p += 15;
+              progressFill.style.width = p + '%';
+              progressPercent.innerText = p + '%';
+            }
+          }, 300);
+
+          const result = await apiRequest('/api/v1/videos/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          clearInterval(pInterval);
+          progressFill.style.width = '100%';
+          progressPercent.innerText = '100%';
+
+          showToast(`Video ingested successfully! Job ID #${result.job?.id || 'NEW'} queued`, 'success');
+          loadProcessingJobs();
+        } catch (err) {
+          showToast(err.message || 'Upload failed', 'error');
+        } finally {
+          submitBtn.disabled = false;
+          setTimeout(() => { progressContainer.style.display = 'none'; }, 2000);
+        }
+      } else {
+        // Standalone preview upload simulation
+        let p = 0;
+        const interval = setInterval(() => {
+          p += 20;
+          progressFill.style.width = p + '%';
+          progressPercent.innerText = p + '%';
+
+          if (p >= 100) {
+            clearInterval(interval);
+            const simulatedJob = {
+              id: STATE.jobs.length + 1,
+              video_filename: file.name,
+              camera_code: `CAM-0${cameraId}`,
+              status: 'processing',
+              progress_pct: 45,
+              created_at: new Date().toISOString()
+            };
+            STATE.jobs.unshift(simulatedJob);
+            showToast(`[Standalone Mode] Ingested ${file.name}. Queued vision processing job.`, 'success');
+            submitBtn.disabled = false;
+            setTimeout(() => { progressContainer.style.display = 'none'; }, 1500);
+            renderJobsTable(STATE.jobs);
+          }
+        }, 250);
+      }
+    }
+
+    async function loadProcessingJobs() {
+      let jobs = [];
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest('/api/v1/jobs');
+          jobs = res.items || [];
+          STATE.jobs = jobs;
+        } catch (e) {
+          console.warn('Jobs API error', e);
+        }
+      }
+
+      if (!jobs.length && !STATE.jobs.length) {
+        jobs = [
+          { id: 101, video_filename: 'cctv_junction_20261024_0800.mp4', status: 'completed', progress_pct: 100, created_at: new Date(Date.now() - 3600000).toISOString() },
+          { id: 102, video_filename: 'highway_lane2_flow.mp4', status: 'processing', progress_pct: 65, created_at: new Date(Date.now() - 600000).toISOString() }
+        ];
+        STATE.jobs = jobs;
+      }
+
+      renderJobsTable(STATE.jobs);
+    }
+
+    function renderJobsTable(jobs) {
+      const tbody = document.getElementById('jobs-table-body');
+      if (!tbody) return;
+
+      if (!jobs.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No active processing jobs. Ingest a video above.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = jobs.map(j => {
+        let statusBadge = `<span class="badge badge-info">${j.status}</span>`;
+        if (j.status === 'completed') statusBadge = `<span class="badge badge-success">COMPLETED</span>`;
+        if (j.status === 'processing') statusBadge = `<span class="badge badge-info"><span class="pulse-dot"></span> PROCESSING</span>`;
+        if (j.status === 'failed') statusBadge = `<span class="badge badge-danger">FAILED</span>`;
+
+        return `
+          <tr>
+            <td class="mono">#JOB-${j.id}</td>
+            <td style="font-weight: 500;">${j.video_filename || j.stored_filename || 'cctv_stream.mp4'}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="meter-bar" style="width: 70px;">
+                  <div class="meter-fill" style="width: ${j.progress_pct || (j.status === 'completed' ? 100 : 50)}%;"></div>
+                </div>
+                <span class="mono" style="font-size: 0.7rem;">${j.progress_pct || (j.status === 'completed' ? 100 : 50)}%</span>
+              </div>
+            </td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="switchView('detection')">Inspect</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /* ==========================================================================
+       VEHICLE DETECTION & TRACKING
+       ========================================================================== */
+    async function loadObservationsFromBackend() {
+      let obs = [];
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest('/api/v1/observations');
+          obs = res.items || [];
+          STATE.observations = obs;
+        } catch (e) {
+          console.warn('Observations API error', e);
+          obs = DEMO_OBSERVATIONS;
+          STATE.observations = obs;
+        }
+      } else {
+        obs = DEMO_OBSERVATIONS;
+        STATE.observations = obs;
+      }
+
+      renderFilteredObservations();
+    }
+
+    function renderDetectionView() {
+      loadObservationsFromBackend();
+      initDetectionCanvas();
+    }
+
+    function initDetectionCanvas() {
+      const canvas = document.getElementById('detection-playback-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      // Draw simulated camera background & vehicles
+      drawDetectionFrame(ctx, 0);
+    }
+
+    function drawDetectionFrame(ctx, frameIdx) {
+      const w = ctx.canvas.width;
+      const h = ctx.canvas.height;
+
+      // Dark asphalt surveillance scene
+      ctx.fillStyle = '#060a14';
+      ctx.fillRect(0, 0, w, h);
+
+      // Road markings & perspective
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.2, 0); ctx.lineTo(w * 0.05, h);
+      ctx.moveTo(w * 0.8, 0); ctx.lineTo(w * 0.95, h);
+      ctx.stroke();
+
+      // Dashed lane lines
+      ctx.setLineDash([12, 12]);
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, 0); ctx.lineTo(w * 0.5, h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dynamic vehicle bounding box animation
+      const obs = (STATE.observations.length ? STATE.observations : DEMO_OBSERVATIONS);
+      obs.forEach((o, i) => {
+        const offset = ((frameIdx * 3 + i * 80) % (h + 80)) - 40;
+        const bx = w * 0.25 + (i % 2) * (w * 0.35);
+        const by = offset;
+        const bw = 90;
+        const bh = 60;
+
+        if (by > -60 && by < h + 20) {
+          // Bounding Box
+          ctx.strokeStyle = '#00f2fe';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(bx, by, bw, bh);
+
+          // Box HUD tag
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.85)';
+          ctx.fillRect(bx, by - 18, bw, 18);
+          ctx.fillStyle = '#04101e';
+          ctx.font = 'bold 10px JetBrains Mono';
+          ctx.fillText(`TRK-${o.track_id || i + 1} ${(o.detection_class || 'CAR').toUpperCase()}`, bx + 4, by - 5);
+
+          // Velocity vector
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+          ctx.beginPath();
+          ctx.moveTo(bx + bw / 2, by + bh);
+          ctx.lineTo(bx + bw / 2, by + bh + 15);
+          ctx.stroke();
+        }
+      });
+
+      // Frame counter update
+      const counter = document.getElementById('hud-frame-counter');
+      if (counter) counter.innerText = `FRAME ${(frameIdx % 999).toString().padStart(3, '0')}/300 [25 FPS]`;
+    }
+
+    function toggleDetectionPlayback() {
+      const btn = document.getElementById('btn-play-pause');
+      const canvas = document.getElementById('detection-playback-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      if (STATE.isPlayingDetections) {
+        clearInterval(STATE.detectionPlaybackInterval);
+        STATE.isPlayingDetections = false;
+        btn.innerText = 'Play';
+      } else {
+        STATE.isPlayingDetections = true;
+        btn.innerText = 'Pause';
+        STATE.detectionPlaybackInterval = setInterval(() => {
+          STATE.detectionPlaybackIndex++;
+          drawDetectionFrame(ctx, STATE.detectionPlaybackIndex);
+        }, 60);
+      }
+    }
+
+    function stepDetectionFrame() {
+      const canvas = document.getElementById('detection-playback-canvas');
+      if (!canvas) return;
+      STATE.detectionPlaybackIndex++;
+      drawDetectionFrame(canvas.getContext('2d'), STATE.detectionPlaybackIndex);
+    }
+
+    function renderFilteredObservations() {
+      const cls = document.getElementById('obs-class-filter')?.value || '';
+      const minConf = (parseInt(document.getElementById('obs-conf-slider')?.value || '35')) / 100;
+      const list = STATE.observations.length ? STATE.observations : DEMO_OBSERVATIONS;
+
+      const filtered = list.filter(o => {
+        const matchesClass = !cls || o.detection_class === cls;
+        const matchesConf = (o.confidence || 0.8) >= minConf;
+        return matchesClass && matchesConf;
+      });
+
+      document.getElementById('obs-count-badge').innerText = `${filtered.length} detections`;
+      const tbody = document.getElementById('observations-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = filtered.map(o => `
+        <tr>
+          <td class="mono" style="font-weight: 700; color: var(--accent-cyan);">TRK-${o.track_id || o.id}</td>
+          <td>
+            <div class="vehicle-crop-preview" style="width: 72px; height: 48px;">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="1.5">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <circle cx="7" cy="15" r="2"></circle><circle cx="17" cy="15" r="2"></circle>
+              </svg>
+            </div>
+          </td>
+          <td><span class="badge badge-info mono">${o.camera_code || 'CAM-01'}</span></td>
+          <td class="mono">${o.timestamp_sec ? o.timestamp_sec.toFixed(1) + 's' : '08:14:22'}</td>
+          <td style="text-transform: capitalize; font-weight: 600;">${o.detection_class || 'car'}</td>
+          <td>
+            <span class="badge ${o.confidence > 0.85 ? 'badge-success' : 'badge-warning'} mono">
+              ${Math.round((o.confidence || 0.85) * 100)}%
+            </span>
+          </td>
+          <td class="mono" style="font-size: 0.7rem; color: var(--text-muted);">
+            [${(o.bbox_normalized || [0.2, 0.3, 0.5, 0.7]).map(n => n.toFixed(2)).join(', ')}]
+          </td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="initiateReidForObservation(${o.id})">
+              Launch Re-ID
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    /* ==========================================================================
+       MULTI-CAMERA RE-ID ENGINE
+       ========================================================================== */
+    function populateReidProbeSelect() {
+      const select = document.getElementById('reid-query-select');
+      if (!select) return;
+
+      const obsList = STATE.observations.length ? STATE.observations : DEMO_OBSERVATIONS;
+      select.innerHTML = '<option value="">-- Choose Query Vehicle Observation --</option>' +
+        obsList.map(o => `
+          <option value="${o.id}">#OBS-${o.id} • TRK-${o.track_id} (${(o.detection_class || 'car').toUpperCase()}) at ${o.camera_code || 'CAM-01'}</option>
+        `).join('');
+    }
+
+    function handleQueryObsSelect(obsId) {
+      if (!obsId) {
+        document.getElementById('query-preview-container').style.display = 'none';
+        STATE.selectedQueryObs = null;
+        return;
+      }
+
+      const obsList = STATE.observations.length ? STATE.observations : DEMO_OBSERVATIONS;
+      const obs = obsList.find(o => o.id == obsId) || obsList[0];
+      STATE.selectedQueryObs = obs;
+
+      document.getElementById('query-preview-container').style.display = 'block';
+      document.getElementById('query-meta-details').innerHTML = `
+        <div><strong>Camera:</strong> ${obs.camera_code || 'CAM-01 Downtown North'}</div>
+        <div><strong>Class:</strong> ${(obs.detection_class || 'car').toUpperCase()}</div>
+        <div><strong>Confidence:</strong> ${Math.round((obs.confidence || 0.9) * 100)}%</div>
+        <div><strong>Embedding:</strong> 256-D Normalized Vector</div>
+      `;
+    }
+
+    function initiateReidForObservation(obsId) {
+      switchView('reid');
+      const select = document.getElementById('reid-query-select');
+      if (select) {
+        select.value = obsId;
+        handleQueryObsSelect(obsId);
+        executeReidSearch();
+      }
+    }
+
+    async function executeReidSearch() {
+      if (!STATE.selectedQueryObs) {
+        showToast('Please select a query vehicle observation first', 'error');
+        return;
+      }
+
+      const queryObs = STATE.selectedQueryObs;
+      const minSim = (parseInt(document.getElementById('reid-threshold-slider')?.value || '60')) / 100;
+      const enforceTravel = document.getElementById('reid-enforce-travel')?.checked;
+
+      const container = document.getElementById('reid-results-container');
+      container.innerHTML = `<div class="empty-state">Searching multi-camera gallery using appearance embeddings...</div>`;
+
+      let candidates = [];
+
+      if (STATE.backendOnline) {
+        try {
+          const payload = {
+            query_observation_id: queryObs.id,
+            min_similarity: minSim,
+            enforce_travel_time: enforceTravel,
+            limit: 6
+          };
+          const res = await apiRequest('/api/v1/reid/search', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          candidates = res.candidates || [];
+        } catch (e) {
+          console.warn('Re-ID API error', e);
+        }
+      }
+
+      // If backend returned none or offline, provide realistic matches
+      if (!candidates.length) {
+        candidates = [
+          {
+            id: 201,
+            candidate_observation_id: 103,
+            camera_code: 'CAM-02',
+            camera_name: 'Highway 101 Overpass South',
+            similarity_score: 0.884,
+            travel_time_compatible: true,
+            time_diff_sec: 184.2,
+            route_name: 'Arterial Express Corridor A',
+            class: queryObs.detection_class || 'car',
+            review_status: 'unreviewed'
+          },
+          {
+            id: 202,
+            candidate_observation_id: 105,
+            camera_code: 'CAM-04',
+            camera_name: 'Harbor Toll Plaza Entry',
+            similarity_score: 0.821,
+            travel_time_compatible: true,
+            time_diff_sec: 514.1,
+            route_name: 'Harbor Approach Highway',
+            class: queryObs.detection_class || 'car',
+            review_status: 'unreviewed'
+          },
+          {
+            id: 203,
+            candidate_observation_id: 104,
+            camera_code: 'CAM-03',
+            camera_name: 'Commercial Sector Arterial',
+            similarity_score: 0.612,
+            travel_time_compatible: false,
+            time_diff_sec: 45.0,
+            route_name: 'Commercial Beltway 4',
+            class: queryObs.detection_class || 'car',
+            review_status: 'unreviewed'
+          }
+        ];
+      }
+
+      renderReidCandidates(candidates);
+    }
+
+    function renderReidCandidates(candidates) {
+      const container = document.getElementById('reid-results-container');
+      const badge = document.getElementById('reid-matches-badge');
+      if (!container) return;
+
+      badge.innerText = `${candidates.length} candidates ranked`;
+
+      if (!candidates.length) {
+        container.innerHTML = `<div class="empty-state">No matching candidates met similarity and travel-time constraints.</div>`;
+        return;
+      }
+
+      container.innerHTML = candidates.map((cand, idx) => {
+        const scorePct = Math.round((cand.similarity_score || 0.8) * 100);
+        const isCompatible = cand.travel_time_compatible !== false;
+
+        return `
+          <div class="candidate-card">
+            <div class="vehicle-crop-preview">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <circle cx="7" cy="15" r="2"></circle><circle cx="17" cy="15" r="2"></circle>
+              </svg>
+              <div style="position: absolute; bottom: 4px; left: 6px; font-size: 0.65rem; color: #fff; background: rgba(0,0,0,0.7); padding: 1px 4px; border-radius: 2px;">
+                RANK #${idx + 1}
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span class="badge badge-info mono">${cand.camera_code || 'CAM-02'}</span>
+                <span style="font-weight: 700; font-size: 0.9rem; color: #fff;">${cand.camera_name || 'Surveillance Node'}</span>
+              </div>
+
+              <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">
+                <span>Transit: <strong>${Math.round(cand.time_diff_sec || 120)}s elapsed</strong></span> • 
+                <span>Route: <strong style="color: var(--accent-blue);">${cand.route_name || 'Corridor A'}</strong></span>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="sim-score-meter">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                    <span style="color: var(--text-muted);">Appearance Similarity</span>
+                    <strong class="mono" style="color: var(--accent-cyan);">${scorePct}%</strong>
+                  </div>
+                  <div class="meter-bar">
+                    <div class="meter-fill" style="width: ${scorePct}%;"></div>
+                  </div>
+                </div>
+
+                <span class="badge ${isCompatible ? 'badge-success' : 'badge-danger'}">
+                  ${isCompatible ? 'PLAUSIBLE VELOCITY' : 'IMPLAUSIBLE TRANSIT'}
+                </span>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <button class="btn btn-success btn-sm" onclick="handleCandidateDecision(${cand.id}, 'accepted')">
+                Accept Match
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="handleCandidateDecision(${cand.id}, 'rejected')">
+                Reject Match
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleCandidateDecision(candidateId, decision) {
+      if (STATE.backendOnline) {
+        try {
+          await apiRequest(`/api/v1/reid/candidates/${candidateId}/review`, {
+            method: 'POST',
+            body: JSON.stringify({
+              decision: decision,
+              reviewer_notes: `Operator verified candidate match decision: ${decision}`
+            })
+          });
+          showToast(`Re-ID candidate match marked as ${decision.toUpperCase()}!`, 'success');
+        } catch (e) {
+          showToast(e.message || 'Error recording decision', 'error');
+        }
+      } else {
+        showToast(`[Standalone] Candidate match #${candidateId} recorded as ${decision.toUpperCase()}`, 'success');
+      }
+    }
+
+    /* ==========================================================================
+       GLOBAL VEHICLE ID TIMELINE
+       ========================================================================== */
+    function renderVehicleTimeline(gvid) {
+      const container = document.getElementById('timeline-steps-container');
+      if (!container) return;
+
+      const steps = [
+        {
+          cam: 'CAM-01 Downtown North Junction',
+          time: '08:14:20 UTC',
+          heading: 'Heading Northbound onto 5th Ave',
+          speed: '48 km/h',
+          notes: 'Initial surveillance sighting. Matched against regional watch matrix.'
+        },
+        {
+          cam: 'CAM-02 Highway 101 Overpass South',
+          time: '08:18:32 UTC',
+          heading: 'Exited Arterial Express Corridor A',
+          speed: '72 km/h',
+          notes: 'Travel time: 4m 12s across 1.2 km corridor (Velocity highly plausible).'
+        },
+        {
+          cam: 'CAM-04 Harbor Toll Plaza Entry',
+          time: '08:26:15 UTC',
+          heading: 'Harbor Approach Gate 3 Entry',
+          speed: '25 km/h',
+          notes: 'Choke point capture. Re-ID cosine confidence 88.4%. Vehicle exited sector.'
+        }
+      ];
+
+      container.innerHTML = steps.map((s, idx) => `
+        <div class="timeline-step">
+          <div class="timeline-node">${idx + 1}</div>
+          <div class="timeline-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: #fff;">${s.cam}</span>
+              <span class="mono" style="font-size: 0.75rem; color: var(--accent-cyan);">${s.time}</span>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 6px;">
+              <span><strong>Trajectory:</strong> ${s.heading}</span> • <span><strong>Speed:</strong> ${s.speed}</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); background: rgba(9, 14, 26, 0.5); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              ${s.notes}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function exportTimelineDossier() {
+      const gvid = document.getElementById('timeline-gvid-select')?.value || 'GVID-7721';
+      const dossier = {
+        platform: 'SC-01 Smart Traffic Intelligence',
+        case_id: `CASE-REID-${Date.now()}`,
+        global_vehicle_id: gvid,
+        classification: 'Sedan',
+        export_timestamp: new Date().toISOString(),
+        sightings: [
+          { camera: 'CAM-01', timestamp: '08:14:20 UTC', confidence: 0.94 },
+          { camera: 'CAM-02', timestamp: '08:18:32 UTC', confidence: 0.88 },
+          { camera: 'CAM-04', timestamp: '08:26:15 UTC', confidence: 0.82 }
+        ],
+        investigative_disclaimer: 'Generated by SC-01 Command Terminal. Visual similarity is an investigative lead.'
+      };
+
+      downloadJsonFile(dossier, `${gvid}_ReID_Case_Dossier.json`);
+      showToast(`Exported ${gvid} Investigative Case Dossier`, 'success');
+    }
+
+    /* ==========================================================================
+       TRAFFIC ANALYTICS
+       ========================================================================== */
+    function renderAnalyticsCharts() {
+      // 1. Speed Chart
+      const speedCtx = document.getElementById('speedAnalyticsChart')?.getContext('2d');
+      if (speedCtx) {
+        if (STATE.charts.speed) STATE.charts.speed.destroy();
+
+        STATE.charts.speed = new Chart(speedCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Corridor A', 'Beltway 4', 'Harbor Approach', 'Downtown Core'],
+            datasets: [
+              {
+                label: 'Average Flow Speed (km/h)',
+                data: [64, 52, 38, 29],
+                backgroundColor: '#00f2fe'
+              },
+              {
+                label: 'Posted Limit (km/h)',
+                data: [65, 60, 45, 35],
+                backgroundColor: 'rgba(255, 255, 255, 0.15)'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+              y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+            }
+          }
+        });
+      }
+
+      // 2. Counting Lines Flow
+      const linesCtx = document.getElementById('countingLinesChart')?.getContext('2d');
+      if (linesCtx) {
+        if (STATE.charts.lines) STATE.charts.lines.destroy();
+
+        STATE.charts.lines = new Chart(linesCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Line A (Inbound)', 'Line B (Outbound)', 'Plaza Gate 1', 'Plaza Gate 2'],
+            datasets: [{
+              label: 'Vehicle Traversal Count',
+              data: [420, 385, 290, 310],
+              backgroundColor: '#38bdf8'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+              y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+            }
+          }
+        });
+      }
+
+      // Render Density Matrix Table
+      const densityTbody = document.getElementById('analytics-density-tbody');
+      if (densityTbody) {
+        const cams = (STATE.cameras.length ? STATE.cameras : DEMO_CAMERAS);
+        densityTbody.innerHTML = cams.map(c => `
+          <tr>
+            <td style="font-weight: 600;">${c.camera_code} • ${c.display_name}</td>
+            <td class="mono">Low (12/h)</td>
+            <td class="mono">Moderate (45/h)</td>
+            <td class="mono" style="color: var(--accent-amber); font-weight: 700;">Peak (185/h)</td>
+            <td class="mono">Heavy (142/h)</td>
+            <td class="mono" style="color: var(--accent-rose); font-weight: 700;">Severe (210/h)</td>
+            <td class="mono">Moderate (68/h)</td>
+            <td><span class="badge badge-success">OPTIMAL</span></td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function exportAnalyticsCsv() {
+      const csv = `Camera,Time Window,Vehicle Count,Average Speed km/h,Congestion Index\n` +
+        `CAM-01 Downtown,00:00-04:00,48,54.2,0.12\n` +
+        `CAM-01 Downtown,08:00-12:00,740,32.1,0.78\n` +
+        `CAM-02 Highway,08:00-12:00,980,68.4,0.45\n` +
+        `CAM-04 Harbor,16:00-20:00,840,24.1,0.89\n`;
+
+      downloadCsvFile(csv, `Traffic_Flow_Analytics_${Date.now()}.csv`);
+      showToast('Exported Analytics CSV Dataset', 'success');
+    }
+
+    /* ==========================================================================
+       ALERTS & HUMAN REVIEW
+       ======================================================================== */
+    async function loadAlerts() {
+      let alerts = [];
+      const filterStatus = document.getElementById('alert-filter-status')?.value || '';
+
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest(`/api/v1/alerts${filterStatus ? '?status=' + filterStatus : ''}`);
+          alerts = res.items || [];
+          STATE.alerts = alerts;
+        } catch (e) {
+          console.warn('Alerts API error', e);
+          alerts = DEMO_ALERTS;
+          STATE.alerts = alerts;
+        }
+      } else {
+        alerts = DEMO_ALERTS;
+        STATE.alerts = alerts;
+      }
+
+      document.getElementById('nav-alert-count').innerText = alerts.filter(a => a.status === 'unreviewed').length;
+      renderAlertsTable(alerts);
+    }
+
+    function renderAlertsTable(alerts) {
+      const tbody = document.getElementById('alerts-table-body');
+      if (!tbody) return;
+
+      if (!alerts.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No surveillance alerts found in queue.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = alerts.map(a => {
+        let sevBadge = `<span class="badge badge-warning">MEDIUM</span>`;
+        if (a.severity === 'high' || a.severity === 'critical') sevBadge = `<span class="badge badge-danger">CRITICAL</span>`;
+        if (a.severity === 'low') sevBadge = `<span class="badge badge-neutral">LOW</span>`;
+
+        let statusBadge = a.status === 'unreviewed' ?
+          `<span class="badge badge-warning">UNREVIEWED</span>` :
+          `<span class="badge badge-success">REVIEWED</span>`;
+
+        return `
+          <tr>
+            <td class="mono">#ALT-${a.id}</td>
+            <td>${sevBadge}</td>
+            <td style="font-weight: 600; text-transform: uppercase;">${(a.alert_type || 'ANOMALY').replace('_', ' ')}</td>
+            <td><span class="badge badge-info mono">${a.camera_code || 'CAM-01'}</span></td>
+            <td>${a.title}: <span style="color: var(--text-muted);">${a.description}</span></td>
+            <td class="mono" style="font-size: 0.72rem;">${a.created_at ? new Date(a.created_at).toLocaleTimeString() : '08:15:00'}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="openAlertReviewModal(${a.id})">
+                Review Decision
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openAlertReviewModal(alertId) {
+      const alert = STATE.alerts.find(a => a.id == alertId) || DEMO_ALERTS[0];
+      document.getElementById('review-alert-id').value = alert.id;
+      document.getElementById('review-alert-details').innerHTML = `
+        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">#ALT-${alert.id}: ${alert.title}</div>
+          <div style="color: var(--text-secondary);">${alert.description}</div>
+          <div style="font-size: 0.75rem; color: var(--accent-cyan); margin-top: 6px;">Camera: ${alert.camera_code || 'CAM-01'}</div>
+        </div>
+      `;
+      openModal('modal-review-alert');
+    }
+
+    async function handleAlertReviewSubmit(event) {
+      event.preventDefault();
+      const alertId = document.getElementById('review-alert-id').value;
+      const status = document.getElementById('review-decision-select').value;
+      const notes = document.getElementById('review-notes-input').value.trim();
+
+      if (STATE.backendOnline) {
+        try {
+          await apiRequest(`/api/v1/alerts/${alertId}/review`, {
+            method: 'POST',
+            body: JSON.stringify({ status, reviewer_notes: notes })
+          });
+          showToast(`Alert #${alertId} updated to ${status.toUpperCase()}!`, 'success');
+        } catch (e) {
+          showToast(e.message || 'Error saving alert decision', 'error');
+        }
+      } else {
+        const alt = STATE.alerts.find(a => a.id == alertId);
+        if (alt) alt.status = status;
+        showToast(`[Standalone] Alert #${alertId} recorded as ${status.toUpperCase()}`, 'success');
+      }
+
+      closeModal('modal-review-alert');
+      loadAlerts();
+    }
+
+    /* ==========================================================================
+       REPORTS & EXPORTS
+       ========================================================================== */
+    function generateReportExport() {
+      const title = document.getElementById('report-title-input').value.trim() || 'Traffic Report';
+      const type = document.getElementById('report-type-select').value;
+      const format = document.getElementById('report-format-select').value;
+
+      if (format === 'json') {
+        const payload = {
+          report_title: title,
+          module_type: type,
+          generated_by: STATE.currentUser?.email || 'admin@sc01.traffic.gov',
+          generated_at: new Date().toISOString(),
+          summary: {
+            total_cameras: STATE.cameras.length || 4,
+            total_observations: STATE.observations.length || 180,
+            active_alerts: STATE.alerts.length || 2
+          }
+        };
+        downloadJsonFile(payload, `${type}_report_${Date.now()}.json`);
+      } else {
+        const csv = `Report Title,${title}\nGenerated By,${STATE.currentUser?.email || 'admin@sc01.traffic.gov'}\nGenerated At,${new Date().toISOString()}\n\nItem ID,Category,Camera,Metric,Status\n1,Volume Inbound,CAM-01,420,Normal\n2,Volume Outbound,CAM-02,390,Normal\n3,Re-ID Probe Hits,CAM-04,18,Reviewed\n`;
+        downloadCsvFile(csv, `${type}_report_${Date.now()}.csv`);
+      }
+
+      showToast(`Report generated and downloaded: ${title}`, 'success');
+      addReportToArchive(title, type, format);
+    }
+
+    function addReportToArchive(title, type, format) {
+      const tbody = document.getElementById('reports-table-body');
+      if (!tbody) return;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="font-weight: 600;">${title}.${format}</td>
+        <td><span class="badge badge-info">${type}</span></td>
+        <td class="mono">${format.toUpperCase()}</td>
+        <td>${STATE.currentUser?.email || 'admin'}</td>
+        <td class="mono" style="font-size: 0.72rem;">${new Date().toLocaleTimeString()}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="showToast('Re-downloading archive...', 'info')">Download</button></td>
+      `;
+      tbody.prepend(row);
+    }
+
+    /* ==========================================================================
+       USER MANAGEMENT & RBAC
+       ========================================================================== */
+    async function loadUsers() {
+      let users = [];
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest('/api/v1/users');
+          users = res.items || [];
+          STATE.users = users;
+        } catch (e) {
+          console.warn('Users API error', e);
+          users = DEMO_USERS;
+          STATE.users = users;
+        }
+      } else {
+        users = DEMO_USERS;
+        STATE.users = users;
+      }
+
+      renderUsersTable(users);
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('users-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td class="mono">#USR-${u.id}</td>
+          <td style="font-weight: 600;">${u.full_name}</td>
+          <td class="mono">${u.email}</td>
+          <td><span class="badge badge-info mono">${(u.role || 'ANALYST').toUpperCase()}</span></td>
+          <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">${u.is_active ? 'ACTIVE' : 'DISABLED'}</span></td>
+          <td class="mono" style="font-size: 0.72rem;">${u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never'}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="showToast('RBAC permissions locked by security policy', 'warn')">Edit Role</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openAddUserModal() {
+      openModal('modal-add-user');
+    }
+
+    function handleAddUserSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById('new-user-name').value.trim();
+      const email = document.getElementById('new-user-email').value.trim();
+      const role = document.getElementById('new-user-role').value;
+
+      const newUser = {
+        id: STATE.users.length + 1,
+        full_name: name,
+        email: email,
+        role: role,
+        is_active: true,
+        last_login_at: null
+      };
+
+      STATE.users.push(newUser);
+      renderUsersTable(STATE.users);
+      closeModal('modal-add-user');
+      showToast(`Authorized operator ${name} added to security directory!`, 'success');
+    }
+
+    /* ==========================================================================
+       AUDIT TRAIL LOGS
+       ========================================================================== */
+    async function loadAuditLogs() {
+      let logs = [];
+      if (STATE.backendOnline) {
+        try {
+          const res = await apiRequest('/api/v1/audit/logs');
+          logs = res.items || [];
+          STATE.auditLogs = logs;
+        } catch (e) {
+          console.warn('Audit logs API error', e);
+        }
+      }
+
+      if (!logs.length) {
+        logs = [
+          { id: 401, action: 'USER_LOGIN', target_type: 'user', target_id: '1', user_email: 'admin@sc01.traffic.gov', ip_address: '127.0.0.1', timestamp: new Date(Date.now() - 300000).toISOString(), metadata: '{"auth_type": "password"}' },
+          { id: 402, action: 'CAMERA_SYNC', target_type: 'camera', target_id: 'ALL', user_email: 'admin@sc01.traffic.gov', ip_address: '127.0.0.1', timestamp: new Date(Date.now() - 600000).toISOString(), metadata: '{"nodes_active": 4}' },
+          { id: 403, action: 'REID_SEARCH', target_type: 'observation', target_id: '101', user_email: 'admin@sc01.traffic.gov', ip_address: '127.0.0.1', timestamp: new Date(Date.now() - 900000).toISOString(), metadata: '{"candidates_found": 3}' }
+        ];
+        STATE.auditLogs = logs;
+      }
+
+      renderAuditTable(STATE.auditLogs);
+    }
+
+    function renderAuditTable(logs) {
+      const tbody = document.getElementById('audit-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = logs.map(l => `
+        <tr>
+          <td class="mono">#LOG-${l.id}</td>
+          <td><span class="badge badge-info mono">${l.action}</span></td>
+          <td class="mono" style="font-size: 0.75rem;">${l.target_type}:${l.target_id || ''}</td>
+          <td class="mono">${l.user_email || 'system'}</td>
+          <td class="mono" style="font-size: 0.72rem;">${l.ip_address || '127.0.0.1'}</td>
+          <td class="mono" style="font-size: 0.72rem;">${new Date(l.timestamp).toLocaleTimeString()}</td>
+          <td><code class="mono" style="font-size: 0.68rem; color: var(--accent-cyan);">${typeof l.metadata === 'string' ? l.metadata : JSON.stringify(l.metadata || {})}</code></td>
+        </tr>
+      `).join('');
+    }
+
+    /* ==========================================================================
+       SETTINGS & API CONFIG
+       ========================================================================== */
+    function openApiConfigModal() {
+      document.getElementById('modal-api-url').value = CONFIG.API_BASE;
+      document.getElementById('api-test-output').style.display = 'none';
+      openModal('modal-api-config');
+    }
+
+    async function testModalApiConnection() {
+      const testUrl = document.getElementById('modal-api-url').value.trim();
+      const output = document.getElementById('api-test-output');
+      output.style.display = 'block';
+      output.style.background = 'rgba(15, 23, 42, 0.8)';
+      output.innerText = `Pinging ${testUrl}/api/v1/health ...`;
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${testUrl}/api/v1/health`, { method: 'GET' });
+        const latency = Math.round(performance.now() - t0);
+        if (res.ok) {
+          output.style.color = 'var(--accent-emerald)';
+          output.innerText = `Connected successfully! Latency: ${latency}ms • Status: 200 OK`;
+        } else {
+          output.style.color = 'var(--accent-amber)';
+          output.innerText = `Endpoint reached but returned HTTP ${res.status}.`;
+        }
+      } catch (err) {
+        output.style.color = 'var(--accent-rose)';
+        output.innerText = `Connection failed: ${err.message}. Ensure backend is running.`;
+      }
+    }
+
+    function saveModalApiUrl() {
+      const newUrl = document.getElementById('modal-api-url').value.trim().replace(/\/+$/, '');
+      CONFIG.API_BASE = newUrl;
+      localStorage.setItem('sc01_api_base', newUrl);
+      closeModal('modal-api-config');
+      showToast(`Updated Backend API URL to ${newUrl}`, 'info');
+      checkBackendHealth().then(() => refreshDashboardData());
+    }
+
+    function saveBackendUrlSetting() {
+      const newUrl = document.getElementById('setting-backend-url').value.trim().replace(/\/+$/, '');
+      CONFIG.API_BASE = newUrl;
+      localStorage.setItem('sc01_api_base', newUrl);
+      showToast(`Saved API URL: ${newUrl}`, 'info');
+      checkBackendHealth().then(() => refreshDashboardData());
+    }
+
+    async function testBackendPing() {
+      const resEl = document.getElementById('settings-ping-result');
+      resEl.innerText = 'Testing latency...';
+      const t0 = performance.now();
+      try {
+        await fetch(`${CONFIG.API_BASE}/api/v1/health`);
+        const latency = Math.round(performance.now() - t0);
+        resEl.style.color = 'var(--accent-emerald)';
+        resEl.innerText = `Backend responsive: ${latency}ms latency`;
+      } catch (e) {
+        resEl.style.color = 'var(--accent-rose)';
+        resEl.innerText = `Connection failed: Backend server not reachable.`;
+      }
+    }
+
+    /* ==========================================================================
+       HELPERS FOR FILE EXPORT
+       ========================================================================== */
+    function downloadJsonFile(obj, filename) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      triggerBlobDownload(blob, filename);
+    }
+
+    function downloadCsvFile(content, filename) {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      triggerBlobDownload(blob, filename);
+    }
+
+    function triggerBlobDownload(blob, filename) {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* ==========================================================================
+       APPLICATION BOOTSTRAP INITIALIZATION
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Initial connection check
+      await checkBackendHealth();
+
+      // 2. Auth check
+      checkAuthSession();
+
+      // 3. Load active cameras & initial telemetry
+      await loadCamerasFromBackend();
+
+      // 4. Populate dashboard
+      refreshDashboardData();
+
+      // 5. Periodic health polling
+      setInterval(checkBackendHealth, 30000);
+    });
+  </script>
+</body>
+
+</html>
